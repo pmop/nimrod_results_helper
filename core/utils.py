@@ -2,7 +2,7 @@ import re
 from enum import Enum
 from copy import deepcopy
 import random
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import heapq
 import math
 import csv
@@ -11,6 +11,7 @@ from os import path
 
 ERULES = ['AOIU:', 'ROR:', 'AOIS:', 'AORB:', 'JSD:']
 DRULES = ['AOIU:ASRS:', 'LOI:ROR:', 'ROR:SDL:', 'AOIU:AOIU:', 'ROR:ROR:', 'ROR:SDL:']
+index_data = namedtuple('IndexData',['index','path'])
 
 
 class LogType(Enum):
@@ -152,7 +153,7 @@ def build_indices(root_paths: [str]):
         indices = build_index(nimrod_equivalent)
         build_index(nimrod_duplicated, indices, rules=DRULES, project_picker=pick_duplicated_project_string)
         samples = draw_sample_from_indices(indices)
-        persist_meta(indices, samples, 'meta', root_path)
+        # persist_meta(indices, samples, 'meta', root_path)
         build_samples_csv(samples, root_path)
 
 
@@ -187,7 +188,8 @@ def build_index(log_path, indices_dict=None, rules=None, project_picker=pick_equ
         mut_operator = re.search(r'(^)\w+:(\w+:)?', log_line).group(0)
         if mut_operator in rules:
             project_string = project_picker(log_line)
-            heapq.heappush(indices_dict[project_string][mut_operator[0:-1]], index)
+            file_path = re.search(r'[^:]*/\w*', log_line).group(0)
+            heapq.heappush(indices_dict[project_string][mut_operator[0:-1]], index_data(index,file_path))
     return indices_dict
 
 
@@ -245,8 +247,10 @@ def build_samples_csv(sample_dict: dict, root_path: str):
                 kind = 'equivalent'
                 if ':' in operator:
                     kind = 'duplicated'
-                for index in indices:
-                    rows.append([key, kind, operator, index])
+                for ituple in indices:
+                    index = ituple.index
+                    ppath = ituple.path
+                    rows.append([key, kind, operator, index, ppath])
             writer.writerows(rows)
 
 
